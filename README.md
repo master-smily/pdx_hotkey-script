@@ -17,23 +17,22 @@ It was built for HOI4 so I don't know what games this works for, but as long as 
 
 This project requires **Python 3.8+**. Follow these steps to set up a clean, isolated virtual environment.
 
-### 1. Clone the Repository
+### 1. Clone or download the Repository
 ```bash
-git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
-cd YOUR_REPO_NAME
+git clone https://github.com/master-smily/pdx-hotkey-script.git
+cd pdx-hotkey-script
 ```
 
 ### 2. Create a Virtual Environment (venv)
 Isolate your project dependencies by creating a local virtual environment:
 
 Windows:
-
 ```bash
 python -m venv venv
 venv\Scripts\activate
-macOS / Linux:
 ```
 
+macOS / Linux:
 ```bash
 python3 -m venv venv
 source venv/bin/activate
