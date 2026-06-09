@@ -1,3 +1,12 @@
+⚠️ This completly breaks the UI for now, it's probably ckparser.revert being experimental, so I don't think I'll be getting this to work.
+
+
+
+
+
+
+
+
 # Paradox hotkey script
 An automated utility script for paradox games modders to update, remap, and maintain user interface hotkeys across game updates.
 
