@@ -1,0 +1,16 @@
+{
+    "target_directory": "./interface",
+    "global": {
+        "RETURN": "c"
+    },
+    "specific": [
+        {
+            "name": "diplomacy_button",
+            "new_shortcut": "e"
+        },
+        {
+            "name": "production_nav_button",
+            "new_shortcut": "p"
+        }
+    ]
+}
