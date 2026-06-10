@@ -68,10 +68,10 @@ def apply_config_overrides(
         args: argparse.Namespace,
 ) -> dict[str, Any]:
     """Merges command line config parameters into the loaded config."""
-    if args.target_directory is not None:
+    if args.source is not None:
         config["target_directory"] = args.target
 
-    if args.output_directory is not None:
+    if args.output is not None:
         config["output_directory"] = args.output
 
     if args.global_rules is not None:
@@ -216,14 +216,18 @@ def main() -> None:
     shutil.rmtree(output_dir, ignore_errors=True)
     gui_files = target_dir.rglob("*.gui")
 
+    last = ""
     for file_path in gui_files:
-        print(f"Inspecting: {file_path.parent}")
+        if last != file_path.parent:
+            print(f"Inspecting: {file_path.parent}")
+            last = file_path.parent
+
         try:
             content = file_path.read_text(encoding="utf-8")
             new_content = apply_hotkey_replacements(content, config)
 
             if new_content != content:
-                output_path = output_dir / target_dir.name / file_path.relative_to(target_dir)
+                output_path = output_dir / file_path
                 output_path.parent.mkdir(parents=True, exist_ok=True)
 
                 with open(output_path, "w", encoding="utf-8") as f:
