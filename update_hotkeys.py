@@ -1,3 +1,4 @@
+import argparse
 from collections import deque
 from collections.abc import Iterator
 from pathlib import Path
@@ -6,10 +7,89 @@ import json
 import re
 import shutil
 
-def load_config(path: str = "hotkeys_config.json") -> dict[str, Any]:
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    """Builds the command line parser for config overrides."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Update Paradox .gui hotkeys using a JSON config file. "
+            "Any config option passed on the command line is also written "
+            "back to the config file before processing."
+        )
+    )
+    parser.add_argument(
+        "--config",
+        default="hotkeys_config.json",
+        help="Path to the JSON config file. Defaults to hotkeys_config.json.",
+    )
+
+    parser.add_argument(
+        "--source",
+        help="Interface directory containing .gui files to read.",
+    )
+    parser.add_argument(
+        "--output",
+        help="Directory where changed .gui files will be written.",
+    )
+
+    parser.add_argument(
+        "--global",
+        dest="global_rules",
+        action="append",
+        nargs=2,
+        metavar=("OLD_KEY", "NEW_KEY"),
+        help=(
+            "Add or update a global shortcut replacement. "
+            "Can be passed multiple times."
+        ),
+    )
+    parser.add_argument(
+        "--specific",
+        dest="specific_rules",
+        action="append",
+        nargs=2,
+        metavar=("NAME", "NEW_SHORTCUT"),
+        help=(
+            "Add or update a named button shortcut replacement. "
+            "Can be passed multiple times."
+        ),
+    )
+    return parser
+
+
+def load_config(path: str) -> dict[str, Any]:
     """Loads the replacement rules and target directory."""
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def apply_config_overrides(
+        config: dict[str, Any],
+        args: argparse.Namespace,
+) -> dict[str, Any]:
+    """Merges command line config parameters into the loaded config."""
+    if args.target_directory is not None:
+        config["target_directory"] = args.target
+
+    if args.output_directory is not None:
+        config["output_directory"] = args.output
+
+    if args.global_rules is not None:
+        global_rules = config.get("global", {})
+        for old_key, new_key in args.global_rules:
+            global_rules[old_key] = new_key
+        config["global"] = global_rules
+
+    if args.specific_rules is not None:
+        existing_rules = config.get("specific", {})
+        for name, new_shortcut in args.specific_rules:
+            existing_rules[name] = {
+                "name": name,
+                "new_shortcut": new_shortcut,
+            }
+        config["specific"] = existing_rules
+
+    return config
 
 
 def find_matching_brace(content: str, open_brace_index: int) -> int | None:
@@ -112,9 +192,14 @@ def apply_hotkey_replacements(content: str, config: dict[str, Any]) -> str:
 
     return content
 
+
 def main() -> None:
+    parser = build_arg_parser()
+    args = parser.parse_args()
     logger: deque[str] = deque()
-    config = load_config()
+    config = load_config(args.config)
+    config = apply_config_overrides(config, args)
+
     target_dir = Path(config.get("target_directory", "./interface"))
     output_dir = Path(config.get("output_directory", "./output"))
 
@@ -130,13 +215,13 @@ def main() -> None:
 
     shutil.rmtree(output_dir, ignore_errors=True)
     gui_files = target_dir.rglob("*.gui")
-    
+
     for file_path in gui_files:
         print(f"Inspecting: {file_path.parent}")
         try:
             content = file_path.read_text(encoding="utf-8")
             new_content = apply_hotkey_replacements(content, config)
-            
+
             if new_content != content:
                 output_path = output_dir / target_dir.name / file_path.relative_to(target_dir)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -152,6 +237,7 @@ def main() -> None:
         print()
         for msg in logger:
             print(msg)
+
 
 if __name__ == "__main__":
     main()
