@@ -67,6 +67,12 @@ def replace_shortcuts_in_block(block, new_shortcut):
     )
 
 
+def is_same_or_child_path(path, parent):
+    resolved_path = path.resolve()
+    resolved_parent = parent.resolve()
+    return resolved_path == resolved_parent or resolved_parent in resolved_path.parents
+
+
 def apply_hotkey_replacements(content, config):
     """
     Applies replacements directly to the file content using Regex.
@@ -104,10 +110,16 @@ def apply_hotkey_replacements(content, config):
 
 def main():
     config = load_config()
-    target_dir = config.get("target_directory", "./interface")
+    target_dir = Path(config.get("target_directory", "./interface"))
+    output_dir = Path(config.get("output_directory", "./output"))
+
+    if is_same_or_child_path(output_dir, target_dir):
+        raise ValueError(
+            f"output_directory must not be the source directory or inside it: {output_dir}"
+        )
     
     # Grab all .gui files in the target directory and its subdirectories
-    gui_files = Path(target_dir).rglob("*.gui")
+    gui_files = target_dir.rglob("*.gui")
     
     for file_path in gui_files:
         print(f"Inspecting: {file_path}")
@@ -118,11 +130,13 @@ def main():
             # Apply the modifications
             new_content = apply_hotkey_replacements(content, config)
             
-            # If the content changed, write it back
+            # If the content changed, write it to the output tree.
             if new_content != content:
-                with open(file_path, "w", encoding="utf-8") as f:
+                output_path = output_dir / target_dir.name / file_path.relative_to(target_dir)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, "w", encoding="utf-8") as f:
                     f.write(new_content)
-                print(f"  -> [SUCCESS] Updated hotkeys in {file_path.name}")
+                print(f"  -> [SUCCESS] Wrote updated hotkeys to {output_path}")
             else:
                 print(f"  -> [SKIPPED] No matching hotkeys found in {file_path.name}")
         

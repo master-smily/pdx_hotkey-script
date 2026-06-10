@@ -1,6 +1,7 @@
 #*.gui
 *.gfx
 #interface/
+output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
