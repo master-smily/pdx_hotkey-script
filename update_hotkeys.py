@@ -1,19 +1,21 @@
 from collections import deque
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 import json
 import re
 import shutil
 
-def load_config(path="hotkeys_config.json"):
+def load_config(path: str = "hotkeys_config.json") -> dict[str, Any]:
     """Loads the replacement rules and target directory."""
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def find_matching_brace(content, open_brace_index):
+def find_matching_brace(content: str, open_brace_index: int) -> int | None:
     """Returns the matching closing brace index, ignoring braces in strings/comments."""
     depth = 0
-    quote = None
+    quote: str | None = None
     in_comment = False
 
     for index in range(open_brace_index, len(content)):
@@ -43,7 +45,7 @@ def find_matching_brace(content, open_brace_index):
     return None
 
 
-def iter_button_type_blocks(content):
+def iter_button_type_blocks(content: str) -> Iterator[tuple[int, int]]:
     """Yields balanced Paradox `buttonType = { ... }` block spans."""
     pattern = re.compile(r"\bbuttonType\s*=\s*\{", flags=re.IGNORECASE)
 
@@ -54,14 +56,14 @@ def iter_button_type_blocks(content):
             yield match.start(), close_brace_index + 1
 
 
-def has_named_button(block, target_name):
+def has_named_button(block: str, target_name: str) -> bool:
     name_pattern = re.compile(
         rf'\bname\s*=\s*(["\']){re.escape(target_name)}\1'
     )
     return bool(name_pattern.search(block))
 
 
-def replace_shortcuts_in_block(block, new_shortcut):
+def replace_shortcuts_in_block(block: str, new_shortcut: str) -> str:
     shortcut_pattern = re.compile(r'(\bshortcut\s*=\s*)(["\'])(.*?)\2')
     return shortcut_pattern.sub(
         lambda match: f"{match.group(1)}{match.group(2)}{new_shortcut}{match.group(2)}",
@@ -69,13 +71,13 @@ def replace_shortcuts_in_block(block, new_shortcut):
     )
 
 
-def is_same_or_child_path(path, parent):
+def is_same_or_child_path(path: Path, parent: Path) -> bool:
     resolved_path = path.resolve()
     resolved_parent = parent.resolve()
     return resolved_path == resolved_parent or resolved_parent in resolved_path.parents
 
 
-def apply_hotkey_replacements(content, config):
+def apply_hotkey_replacements(content: str, config: dict[str, Any]) -> str:
     """
     Applies replacements directly to the file content using Regex.
     This preserves the original file formatting perfectly.
@@ -95,7 +97,7 @@ def apply_hotkey_replacements(content, config):
         target_name = rule["name"]
         new_shortcut = rule["new_shortcut"]
 
-        updated_parts = []
+        updated_parts: list[str] = []
         last_index = 0
         for start, end in iter_button_type_blocks(content):
             block = content[start:end]
@@ -110,8 +112,8 @@ def apply_hotkey_replacements(content, config):
 
     return content
 
-def main():
-    logger = deque()
+def main() -> None:
+    logger: deque[str] = deque()
     config = load_config()
     target_dir = Path(config.get("target_directory", "./interface"))
     output_dir = Path(config.get("output_directory", "./output"))
@@ -122,23 +124,18 @@ def main():
         )
 
     shutil.rmtree(output_dir, ignore_errors=True)
-    
-    # Grab all .gui files in the target directory and its subdirectories
     gui_files = target_dir.rglob("*.gui")
     
     for file_path in gui_files:
         print(f"Inspecting: {file_path.parent}")
         try:
-            # Read the raw text content
             content = file_path.read_text(encoding="utf-8")
-            
-            # Apply the modifications
             new_content = apply_hotkey_replacements(content, config)
             
-            # If the content changed, write it to the output tree.
             if new_content != content:
                 output_path = output_dir / target_dir.name / file_path.relative_to(target_dir)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
+
                 with open(output_path, "w", encoding="utf-8") as f:
                     f.write(new_content)
                 print(f"  -> [SUCCESS] Wrote updated hotkeys to {output_path}")
