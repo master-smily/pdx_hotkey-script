@@ -1,12 +1,3 @@
-⚠️ Review the generated output before copying it into a mod.
-
-
-
-
-
-
-
-
 # Paradox hotkey script
 An automated utility script for paradox games modders to update, remap, and maintain user interface hotkeys across game updates.
 
