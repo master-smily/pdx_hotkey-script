@@ -162,14 +162,24 @@ def apply_hotkey_replacements(content: str, config: dict[str, Any]) -> str:
     Applies replacements directly to the file content using Regex.
     This preserves the original file formatting perfectly.
     """
+    count = []
+
     # 1. Global Replacements (Search-All)
     global_rules = config.get("global", {})
-    for old_key, new_key in global_rules.items():
-        # Matches: shortcut = "OLD_KEY"
-        # Replaces with: shortcut = "NEW_KEY"
-        # This handles varying whitespace around the '=' sign.
-        pattern = rf'\bshortcut\s*=\s*"{re.escape(old_key)}"'
-        content = re.sub(pattern, f'shortcut = "{new_key}"', content)
+    if global_rules:
+        # Build a single regex pattern: \bshortcut\s*=\s*"(key1|key2|key3)"
+        escaped_keys = [re.escape(k) for k in global_rules.keys()]
+        pattern = r'\bshortcut\s*=\s*"(' + '|'.join(escaped_keys) + r')"'
+
+        # Callback function to handle the replacement logic for each match found
+        def replace_match(match):
+            old_key = match.group(1)
+            new_key = global_rules[old_key]
+            count.append((old_key, new_key))
+            return f'shortcut = "{new_key}"'
+
+        # re.sub does a single pass, completely preventing cascading replacements
+        content = re.sub(pattern, replace_match, content)
 
     # 2. Specific Replacements (Targeted by 'name')
     specific_rules = config.get("specific", [])
