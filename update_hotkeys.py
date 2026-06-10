@@ -1,6 +1,8 @@
+from collections import deque
+from pathlib import Path
 import json
 import re
-from pathlib import Path
+import shutil
 
 def load_config(path="hotkeys_config.json"):
     """Loads the replacement rules and target directory."""
@@ -109,6 +111,7 @@ def apply_hotkey_replacements(content, config):
     return content
 
 def main():
+    logger = deque()
     config = load_config()
     target_dir = Path(config.get("target_directory", "./interface"))
     output_dir = Path(config.get("output_directory", "./output"))
@@ -117,12 +120,14 @@ def main():
         raise ValueError(
             f"output_directory must not be the source directory or inside it: {output_dir}"
         )
+
+    shutil.rmtree(output_dir, ignore_errors=True)
     
     # Grab all .gui files in the target directory and its subdirectories
     gui_files = target_dir.rglob("*.gui")
     
     for file_path in gui_files:
-        print(f"Inspecting: {file_path}")
+        print(f"Inspecting: {file_path.parent}")
         try:
             # Read the raw text content
             content = file_path.read_text(encoding="utf-8")
@@ -137,11 +142,14 @@ def main():
                 with open(output_path, "w", encoding="utf-8") as f:
                     f.write(new_content)
                 print(f"  -> [SUCCESS] Wrote updated hotkeys to {output_path}")
-            else:
-                print(f"  -> [SKIPPED] No matching hotkeys found in {file_path.name}")
-        
+
         except Exception as e:
-            print(f"  -> [ERROR] Could not process {file_path.name}: {e}")
+            logger.append(f"  -> [ERROR] Could not process {file_path}: {e}")
+
+    if logger:
+        print()
+        for msg in logger:
+            print(msg)
 
 if __name__ == "__main__":
     main()
