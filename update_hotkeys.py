@@ -123,6 +123,11 @@ def main() -> None:
             f"output_directory must not be the source directory or inside it: {output_dir}"
         )
 
+    if (output_dir / "descriptor.mod").exists():
+        raise ValueError(
+            f"output_directory appears to be a mod root and will not be removed: {output_dir}"
+        )
+
     shutil.rmtree(output_dir, ignore_errors=True)
     gui_files = target_dir.rglob("*.gui")
     
