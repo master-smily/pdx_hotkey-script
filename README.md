@@ -13,35 +13,13 @@ It was built for HOI4 so I don't know what games this works for, but as long as 
 
 ---
 
-## Installation & Setup
 
-This project requires **Python 3.8+**. Follow these steps to set up a clean, isolated virtual environment.
+This project requires **Python 3.8+**.
 
-### 1. Clone or download the Repository
+### Clone or download the Repository
 ```bash
 git clone https://github.com/master-smily/pdx-hotkey-script.git
 cd pdx-hotkey-script
-```
-
-### 2. Create a Virtual Environment (venv)
-Isolate your project dependencies by creating a local virtual environment:
-
-Windows:
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
-
-macOS / Linux:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-### 3. Install Dependencies
-Install the required packages using pip and the provided requirements.txt:
-
-```bash
-pip install -r requirements.txt
 ```
 
 ## Configuration (*hotkeys_config.json*)
