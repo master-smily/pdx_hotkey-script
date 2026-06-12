@@ -2,7 +2,7 @@ import argparse
 from collections import deque
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 import json
 import re
 import shutil
@@ -69,7 +69,7 @@ def apply_config_overrides(
 ) -> dict[str, Any]:
     """Merges command line config parameters into the loaded config."""
     if args.source is not None:
-        config["target_directory"] = args.target
+        config["target_directory"] = args.source
 
     if args.output is not None:
         config["output_directory"] = args.output
@@ -151,12 +151,6 @@ def replace_shortcuts_in_block(block: str, new_shortcut: str) -> str:
     )
 
 
-def is_same_or_child_path(path: Path, parent: Path) -> bool:
-    resolved_path = path.resolve()
-    resolved_parent = parent.resolve()
-    return resolved_path == resolved_parent or resolved_parent in resolved_path.parents
-
-
 def apply_hotkey_replacements(content: str, config: dict[str, Any]) -> str:
     """
     Applies replacements directly to the file content using Regex.
@@ -210,21 +204,13 @@ def main() -> None:
     config = load_config(args.config)
     config = apply_config_overrides(config, args)
 
-    target_dir = Path(config.get("target_directory", "./interface"))
-    output_dir = Path(config.get("output_directory", "./output"))
+    source_dir = Path(config.get("target_directory", "./interface")).resolve()
+    output_dir = Path(config.get("output_directory", "./output")).resolve()
 
-    if is_same_or_child_path(output_dir, target_dir):
-        raise ValueError(
-            f"output_directory must not be the source directory or inside it: {output_dir}"
-        )
-
-    if (output_dir / "descriptor.mod").exists():
-        raise ValueError(
-            f"output_directory appears to be a mod root and will not be removed: {output_dir}"
-        )
+    validate_directory(output_dir, source_dir)
 
     shutil.rmtree(output_dir, ignore_errors=True)
-    gui_files = target_dir.rglob("*.gui")
+    gui_files = source_dir.rglob("*.gui")
 
     last = ""
     for file_path in gui_files:
@@ -238,6 +224,13 @@ def main() -> None:
 
             if new_content != content:
                 output_path = output_dir / file_path
+
+                try:
+                    validate_directory(output_path)
+                except ValueError as e:
+                    raise PermissionError(
+                        f"Target path '{output_path}' falls within a protected game or storefront library."
+                    ) from e
                 output_path.parent.mkdir(parents=True, exist_ok=True)
 
                 with open(output_path, "w", encoding="utf-8") as f:
@@ -251,6 +244,54 @@ def main() -> None:
         print()
         for msg in logger:
             print(msg)
+
+
+def validate_directory(output_dir: Path, source_dir: Optional[Path] = None):
+    if source_dir and (output_dir == source_dir or source_dir in output_dir.parents):
+        raise ValueError(
+            f"Output directory must not be the source directory or inside it: {output_dir}"
+        )
+
+    if (output_dir / "descriptor.mod").exists():
+        raise ValueError(
+            f"Output directory appears to be a mod root and will not be removed: {output_dir}"
+        )
+
+    output_parts = output_dir.parts
+    paradox_games = [
+        # Jomini Engine / Modern Releases
+        "Imperator Rome",
+        "Crusader Kings III",
+        "Victoria 3",
+        "Europa Universalis V",
+
+        # Clausewitz Engine Staples (Active Playerbases)
+        "Hearts of Iron IV",
+        "Europa Universalis IV",
+        "Stellaris",
+
+        # Classic Legacy Titles (Persistent Modding/Player Communities)
+        "Crusader Kings II",
+        "Victoria II",
+        "Hearts of Iron III"
+    ]
+    storefront_markers = {
+        "steamapps",  # Steam Library
+        "epic games",  # Epic Games Store default
+        "gog games",  # GOG default (Linux / Custom Windows)
+        "gog galaxy",  # GOG Galaxy default library path
+        "xboxgames",  # Xbox App / Windows Store default
+        "origin games",  # Legacy EA App / Origin
+        "ea games"  # Modern EA App
+    }
+
+    for game in paradox_games:
+        if game in output_parts:
+            raise ValueError(f"Output directory can't be in the {game} folder")
+
+    intersection = storefront_markers & {part.lower() for part in output_parts}
+    if intersection:
+        raise ValueError(f"Output directory can't be in {list(intersection)[0].title()}")
 
 
 if __name__ == "__main__":
