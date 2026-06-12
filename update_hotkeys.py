@@ -223,7 +223,7 @@ def main() -> None:
             new_content = apply_hotkey_replacements(content, config)
 
             if new_content != content:
-                output_path = output_dir / file_path
+                output_path = output_dir / file_path.relative_to(source_dir.parent)
 
                 try:
                     validate_directory(output_path)
